@@ -9,9 +9,9 @@ from geometry_msgs.msg import Twist
 s = 0.4 #speed
 keyBindings = { 
                'w':(s,0),
-               'a':(0,-s),
+               'a':(0,s),
                's':(-s,0),
-               'd':(0,s)
+               'd':(0,-s)
               }
    
 def getKey():
@@ -30,9 +30,9 @@ def makeCmdMessage(key):
         print key
         cmd.linear.x = keyBindings[key][0] #forward/back
         cmd.angular.z = keyBindings[key][1] #turn
-    else
+    else:
         #don't change Twist 0.0 defaults
-        print "Key != wasd: pause motion
+        print "Key != wasd: pause motion"
 
     return cmd
 
@@ -46,8 +46,8 @@ rospy.init_node('teleop')
 publisher = rospy.Publisher('cmd_vel', Twist, queue_size = 1)
 
 #loop key command updates
-rate = rospy.Rate(10) #****check required rate
-while key != '\x03':
+rate = rospy.Rate(10) 
+while key != '\x03':  #node kill wont work w/o rospy.is_shutdown condition
     key = getKey()
 
     cmd = makeCmdMessage(key)

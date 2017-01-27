@@ -4,6 +4,7 @@
 
 import rospy
 from geometry_msgs.msg import Twist
+from time import time
 
 class drive_square:
     """ Controls square driving behavior of neato"""
@@ -11,37 +12,37 @@ class drive_square:
     def __init__(self):
         """inializes twist cmd and decision flags; sets time constants"""
         self.cmd = Twist()
-        self.cornerTime = 1.0
-        self.edgeTime = 2.0
+        self.cornerTime = 3.04
+        self.edgeTime = 2.05
 
         self.edges = 0
         self.inTurnState = True
-        self.startTime = rospy.Time.now()
+        self.startTime = time()
 
     def corner(self):
         """updates twist cmd to turn; checks if turn is at end"""
         self.cmd.linear.x = 0.0
-        self.cmd.angular.z = 1.0
+        self.cmd.angular.z = 0.5
         
-        if (rospy.Time.now() - self.startTime) > self.cornerTime:
+        if (time() - self.startTime) > self.cornerTime:
             self.inTurnState = False
             print "Vertex Complete"
-            self.startTime = rospy.Time.now()
+            self.startTime = time()
             
     def edge(self):
         """updates twist cmd to drive sraight; checks if edge is at end"""
-        self.cmd.linear.x = 0.4
+        self.cmd.linear.x = 1.0
         self.cmd.angular.z = 0.0
         
-        if (rospy.Time.now() - self.startTime) > self.edgeTime:
+        if (time() - self.startTime) > self.edgeTime:
             self.inTurnState = True
             self.edges += 1
             print "Edge Complete"
-            self.startTime = rospy.Time.now()
+            self.startTime = time()
 
     def update(self):
         """Determine robot state and trigger cmd update""" 
-        if self.inTurningState:
+        if self.inTurnState:
             self.corner()
         else:
             self.edge()
@@ -56,7 +57,7 @@ publisher = rospy.Publisher('cmd_vel', Twist, queue_size = 10)
 my_square = drive_square()
 
 #loop key command updates
-rate = rospy.Rate(10) 
+rate = rospy.Rate(20) 
 while not rospy.is_shutdown() and my_square.edges<4: 
     cmd = my_square.update()
     publisher.publish(cmd)

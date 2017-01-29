@@ -6,18 +6,23 @@ import rospy
 from geometry_msgs.msg import Twist
 from time import time
 
-class drive_square:
+
+class DriveSquareNode(object):
     """ Controls square driving behavior of neato"""
 
     def __init__(self):
         """inializes twist cmd and decision flags; sets time constants"""
+        rospy.init_node('drive_square')
+        self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        self.rate = rospy.Rate(20)
+
         self.cmd = Twist()
         self.cornerTime = 3.04
         self.edgeTime = 2.05
 
         self.edges = 0
         self.inTurnState = True
-        self.startTime = time()
+        self.startTime = time()   
 
     def corner(self):
         """updates twist cmd to turn; checks if turn is at end"""
@@ -40,34 +45,27 @@ class drive_square:
             print "Edge Complete"
             self.startTime = time()
 
-    def update(self):
-        """Determine robot state and trigger cmd update""" 
-        if self.inTurnState:
-            self.corner()
+    def run(self):
+        """Determine robot state and trigger cmd update"""
+        while not rospy.is_shutdown() and my_square.edges<4:      
+            if self.inTurnState:
+                self.corner()
+            else:
+                self.edge()
+        
+            self.pub.publish(self.cmd)
+            self.rate.sleep()
+
+        #end motion (if any) and exit node
+        publisher.publish(Twist())
+        print "Motion Ended"
+
+        if my_square.edges == 4:
+            print "Square Completed"
         else:
-            self.edge()
-        return self.cmd
+            print "Not Square"
 
+#run instance
+my_square = DriveSquareNode()
+my_square.run()
 
-#iniitalize ros communication
-rospy.init_node('drive_square')
-publisher = rospy.Publisher('cmd_vel', Twist, queue_size = 10)
-
-#make drive_square class instance
-my_square = drive_square()
-
-#loop key command updates
-rate = rospy.Rate(20) 
-while not rospy.is_shutdown() and my_square.edges<4: 
-    cmd = my_square.update()
-    publisher.publish(cmd)
-    rate.sleep()
-
-#end motion (if any) and exit node
-publisher.publish(Twist())
-print "Motion Ended"
-
-if my_square.edges == 4:
-    print "Square Completed"
-else:
-    print "Not Square"

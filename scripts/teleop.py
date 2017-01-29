@@ -47,12 +47,12 @@ publisher = rospy.Publisher('cmd_vel', Twist, queue_size = 1)
 
 #loop key command updates
 rate = rospy.Rate(10) 
-while key != '\x03':  #node kill wont work w/o rospy.is_shutdown condition
-    key = getKey()
-
+while key != '\x03' and not rospy.is_shutdown():  
     cmd = makeCmdMessage(key)
     publisher.publish(cmd)
     rate.sleep()
+
+    key = getKey()
 
 #end teleopmotion and exit node
 cmd = Twist()

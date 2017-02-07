@@ -17,7 +17,7 @@ class DriveSquareNode(object):
 
         self.cmd = Twist()
         self.cornerTime = rospy.Duration(3.04)
-        self.edgeTime = rospy.Duration(2.05)
+        self.edgeTime = rospy.Duration(3.00)
 
         self.edges = 0
         self.inTurnState = True

@@ -37,14 +37,13 @@ class ObstacleAvoid(object):
         self.processForces()
 
     def processForces(self):
-        """converts laser scan points in scan area to repellent forces ****inversely proportional*** to distance"""
+        """converts laser scan points in scan area to repellent forces inversely proportional to distance"""
         forces = []
         for i in range(len(self.ranges)):
             if i <= self.scanArea or i >= 360 - self.scanArea:
                 if self.ranges[i]:
-                    #****should be inversely proportional or inverse square to distance not proposionally***
-                    x = -self.ranges[i]*math.cos(math.radians(i))
-                    y = -self.ranges[i]*math.sin(math.radians(i))
+                    x = -math.cos(math.radians(i))/self.ranges[i]
+                    y = -math.sin(math.radians(i))/self.ranges[i]
                     forces.append([x, y])
 
         #add forces 

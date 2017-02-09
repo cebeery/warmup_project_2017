@@ -44,18 +44,38 @@ class WallFollow(object):
         angleZ = math.radians(2*self.angleOffset)
 
         z = math.sqrt(x**2 + y**2 - 2*x*y*math.cos(angleZ))
+
         try:
             angleX = math.acos((-(x**2) + y**2 + z**2)/(2*y*z))
+            print(angleX)
             return math.degrees(angleX) + self.angleOffset
             print("in range")
         except:
             print("One range not in range")
             return 90
 
+    def findHeight(self, a, b, Theta):
+        x = self.ranges[a]
+        y = self.ranges[b]
+        angleZ = math.radians(Theta)
+        z = math.sqrt(x**2 + y**2 - 2.0*x*y*math.cos(angleZ))
+        #print(x, y, z)
+        denom = -2*y*z
+        numer = x**2 - y**2 - z**2
+
+
+        #print("Cos:" + str(numer/denom))
+        angleA = math.acos(numer/denom)
+
+        h = math.sin(angleA)*y
+
+        print(h)
+
+        return h
+
     def turnToFind(self, a, b):
         if self.ranges[a] and self.ranges[b]:
-            self.angleToParallel = self.lawOfCosines(a, b)
-            self.angleToParallel = self.angleToParallel-90
+            self.angleToParallel = self.lawOfCosines(a, b)-90
             self.cmd.angular.z = self.kP*-self.angleToParallel
             print(self.angleToParallel)
             if math.fabs(self.angleToParallel) < 1.0 and self.state == 'finding':
@@ -95,12 +115,28 @@ class WallFollow(object):
             self.cmd =Twist()
             self.state = 'wallFollow'
 
+
+    def turnParallelPerpindicular(self):
+        if rospy.Time.now()-self.startTime < rospy.Duration(3.2):
+            self.cmd.angular.z = -0.5
+        else:
+            self.cmd =Twist()
+            self.state = 'finding'
+
     def wallFollow(self):
         currentDist = self.ranges[4]
+        if self.ranges[3]:
+            h = self.findHeight(2, 3, 2*self.angleOffset)
+        else:
+            h = 0.0
 
-        if currentDist == 0.0  or currentDist > 1:
+        if currentDist == 0.0 or currentDist > 1:
             self.turnToFind(2, 3)
             self.cmd.linear.x = 0.2
+        elif h and math.fabs(self.setpointDistance - h) > 0.2:
+            self.state == 'correctTurn'
+            self.startTime = rospy.Time.now()
+            self.cmd.linear.x = 0
         else:
             self.cmd.linear.x = 0
             self.state = 'finding'
@@ -113,15 +149,14 @@ class WallFollow(object):
                   270 - self.angleOffset,  #  Right Side Wall
                   0]
 
-        
+
         indexMarker = 0
         self.wallMarker.points = []
 
         for i in range(0, len(angles)-1):
             if not self.ranges[i] == 0.0:
-                print('setting marker')
                 angle = math.radians(angles[i])
-                print angle 
+                print angle
 
                 x = math.cos(angle)
                 y = math.sin(angle)
@@ -136,7 +171,7 @@ class WallFollow(object):
 
 
         while not rospy.is_shutdown():
-            
+
             if self.state == 'finding':
                 print 'Finding'
                 self.turnToFind(0, 1)
@@ -149,7 +184,9 @@ class WallFollow(object):
             elif self.state == 'wallFollow':
                 print 'Wall Following'
                 self.wallFollow()
-            
+            elif self.state == 'correctTurn':
+                self.turnParallelPerpindicular()
+
             self.markWall()
             self.pubViz.publish(self.wallMarker)
             self.pubCmd.publish(self.cmd)

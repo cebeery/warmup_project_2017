@@ -40,7 +40,10 @@ class ObstacleAvoid(object):
             netY += i[1]*100//1/100/len(forces)
 
         netR = math.sqrt(netX**2 + netY**2)
-        netTheta = math.atan(netY/netX)
+        if not netX == 0:
+            netTheta = math.atan(netY/netX)
+        else:
+            netTheta = 0.0
 
         self.netForce = [netR, netTheta]
         print(self.netForce)
@@ -49,7 +52,7 @@ class ObstacleAvoid(object):
 
     def main(self):
         while not rospy.is_shutdown():
-            self.pubCmd.publish(self.cmd)
+            #self.pubCmd.publish(self.cmd)
             self.pubViz.publish(self.viz)
 
 

@@ -99,7 +99,8 @@ class WallFollow(object):
     def calcHeight(self, a, b):
         """calculates distance of robot from wall along perdendicular to wall"""
         z, angleX = self.lawOfCosines(a,b)
-        return math.sin(angleX)*y
+        
+        return math.sin(angleX)*self.ranges[b]
 
     #
     # States
@@ -175,7 +176,7 @@ class WallFollow(object):
         """
 	attempts to stay parallel to wall by calling findWall's angular p-controller on robots -y direction
         State changes: 1) too far from wall --> change to correctDistance
-                       2) object in front --> change to findWall 
+                       2) object in front --> change to findWall wall
         """
 
         #determine wall distance, if can
@@ -186,16 +187,16 @@ class WallFollow(object):
 
         #change state or run state switchcase
         currentDist = self.ranges[4]
-        if h and math.fabs(self.setpointDistance - h) > 0.2:
+        if currentDist == 0.0 or currentDist > 1:
+            # if no object in front --> correct wall parallal as moving forward
+            self.turnToFind(2, 3)
+            self.cmd.linear.x = 0.2
+        elif h and math.fabs(self.setpointDistance - h) > 0.2:
             # if too far from wall --> change to correctDistance state
             self.cmd.linear.x = 0
             self.cmd.angular.z = 0
             self.state == 'correctDistance'
             self.startTime = rospy.Time.now()
-        elif currentDist == 0.0 or currentDist > 1:
-            # if no object in front --> correct wall parallal as moving forward
-            self.turnToFind(2, 3)
-            self.cmd.linear.x = 0.2
         else:
             # if object in front --> change to findWall state to align with new wall/object
             self.cmd.linear.x = 0

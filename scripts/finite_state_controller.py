@@ -261,29 +261,33 @@ class FSM(object):
     #
 
     def calcCOM(self, points):
+        """ calculates the unweighted COM x,y of seen objects or defaults """
         xSum = 0
         ySum = 0
         for i in range(len(points)):
             xSum += self.currentScan[i]*math.cos(math.radians(self.currentAngles[i]))
             ySum += self.currentScan[i]*math.sin(math.radians(self.currentAngles[i]))
-        if len(points):
-            return Point32(x=xSum/len(points), y=ySum/len(points))
-        else:
-            return Point(x=self.robotPosition.x+self.setPointDist, y=self.robotPosition.y)
+        return Point32(x=xSum/len(points), y=ySum/len(points))
 
     def calcDistance(self, pointCom):
+        """Convert x,y coordinate to distance """
         return math.sqrt(pointCom.x**2 + pointCom.y**2)
 
     def calcCOMAngle(self, pointCom):
+        """Convert x,y coordinate angle wrt base_link """
         dX = pointCom.x
         dY = pointCom.y
+
         if not dX == 0 and not dY == 0:
             return math.degrees(math.atan(dY/dX))
         else:
             return 0
 
     def followPerson(self):
-        
+        """ 
+        Follow person state uses p-controller for following object in bounding frame
+        Switches to wall following if not objects seen in bounding frame
+        """
         if self.currentScan:
             #Calculate COM characteristics
             centerOfMass = self.calcCOM(self.currentScan)
@@ -298,11 +302,9 @@ class FSM(object):
             xVel = self.kDist*(dist-self.setPointDist)
             if math.fabs(dist-self.setPointDist) < 0.1:
                 xVel = 0
-
             zVal = self.kAngle*(angle)
             if math.fabs(angle) < 2:
                 zVal = 0 
-
             self.cmd.linear.x=xVel
             self.cmd.angular.z=zVal
         else:

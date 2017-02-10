@@ -21,7 +21,7 @@ class ObstacleAvoid(object):
         self.r = rospy.Rate(2)
 
         #control attribute
-        self.scanRange = 45
+        self.scanRange = 90
         self.scanThrow = 2 #*** arbitray
         self.kAngular = 0.3
         self.kLinear = 0.2
@@ -84,8 +84,8 @@ class ObstacleAvoid(object):
 
     def setCmdActive(self):
         """State using point turns to move away from very close objects"""
-        self.cmd.angular.z = 0.2
-        self.cmd.linear.x = 0.0
+        self.cmd.angular.z = 0.3
+        self.cmd.linear.x = -0.0
 
     def setCmdForward(self):
         """State using only a set forward linear motion when no objects nearish"""
@@ -97,7 +97,7 @@ class ObstacleAvoid(object):
             self.state = 'active'
         #elif self.netForce[0] > -0.2: # ****currently arbitary
         #    self.state = 'forward'
-        #else:
+        else:
             self.state = 'passive'
 
         print("State")
@@ -110,8 +110,7 @@ class ObstacleAvoid(object):
                 self.setCmdPassive()
             elif self.state == 'active':
                 self.setCmdActive()
-            #elif self.state == 'forward':
-            #    self.setCmdForward()
+            #elif self.state == 'backward':
             else:
                 print("State Unknown")
 

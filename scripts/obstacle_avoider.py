@@ -21,11 +21,14 @@ class ObstacleAvoid(object):
         self.r = rospy.Rate(2)
 
         #control attribute
-        self.scanArea = 90
+        self.scanArea = 60
+        self.kp = 0.3
+        
 	
 	#cmd and sub storage attributes
         self.ranges = []
         self.cmd = Twist()
+        self.cmd.linear.x = 0.2
         self.viz = Marker()
 
         #current status attributes
@@ -33,6 +36,7 @@ class ObstacleAvoid(object):
 
     def processScan(self, msg):
         """updates stored laser scan and calls conversion to force"""
+        print("Scanning") 
         self.ranges = msg.ranges
         self.processForces()
 
@@ -42,37 +46,44 @@ class ObstacleAvoid(object):
         for i in range(len(self.ranges)):
             if i <= self.scanArea or i >= 360 - self.scanArea:
                 if self.ranges[i]:
-                    x = -math.cos(math.radians(i))/self.ranges[i]
-                    y = -math.sin(math.radians(i))/self.ranges[i]
+                    x = math.cos(math.radians(i))/self.ranges[i] 
+                    y = math.sin(math.radians(i))/self.ranges[i]
                     forces.append([x, y])
+        if not forces:
+            forces= [0,0]
+            print "Nothing to See"
 
         #add forces 
         netX = 0
         netY = 0
         for i in forces:
-            netX += i[0]
-            netY += i[1]
+            netX += i[0]/len(forces)
+            netY += i[1]/len(forces)
+        print(netX, netY)  
 
 	#convert to polar coordinates for use with angular p-controller
-        netR = math.sqrt(netX**2 + netY**2)
+	netTheta = math.atan(netY/netX)
+        netR = -math.sqrt(netX**2 + netY**2)
         netTheta = math.atan(netY/netX)
 
         #constraint robot to never retreat to avoid reverse motion collisions
-        if netR < 0.0:
+        if netR > 0.0:
            netR = 0.0
 
 	#update net force attribute
         self.netForce = [netR, netTheta]
         print("{0:.2f}".format(netR), "{0:.2f}".format(netTheta)) #print 2 decimals of net force 
 
-
-
+    def setCmd(self):
+        self.cmd.angular.z = self.netForce[0] * self.kp * math.copysign(1,self.netForce[1])
+        print("Turn" + str(self.cmd.angular.z))
+ 
     def main(self):
         """ Run Loop -- currently just allows CB to run"""
         while not rospy.is_shutdown():
-            #self.pubCmd.publish(self.cmd)
-            #self.pubViz.publish(self.viz)
-	    pass
+            self.setCmd()
+            self.pubCmd.publish(self.cmd)
+	    self.r.sleep()
 
 # Run instance
 robit = ObstacleAvoid()

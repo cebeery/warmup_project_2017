@@ -29,9 +29,6 @@ class FSM(object):
                                  scale=Vector3(0.5, 0.5, 0.5),
                                  color=ColorRGBA(0.8, 0.26, 0.25, 1.0),  #red
                                  type=Marker.SPHERE_LIST)
-        self.ranges = [0, 0, 0, 0, 0, 0]
-        self.currentScan = []
-        self.currentAngles = []
          
         #initialize state specific attributes
         self.setPersonDefaults()
@@ -43,7 +40,8 @@ class FSM(object):
         self.motionThreshold = 0.05
 
         #person follow status attribute
-       
+        self.currentScan = []
+        self.currentAngles = []
         self.centerOfMass = Point32()
         self.robotPosition = Point()
         self.kAngle = 0.017
@@ -61,6 +59,7 @@ class FSM(object):
 
         #wall follow status attribute
         self.angleToParallel = 0
+        self.ranges = [0, 0, 0, 0, 0, 0]
 
     def processScan(self, msg):
         """Update ranges attributes with magnetudes of preset angles of laser scan """
@@ -82,11 +81,10 @@ class FSM(object):
 
     def checkStateChange(self):
         """Checks if person/object is directly to left and changes to state transition if so"""
-        if self.state == "wallFollower":
-            print(self.ranges[5])
-            if self.ranges[5] > 0.0 and self.ranges[5] < 1.0:
-                print("transition")
+        if self.state == "wallFollower" and self.substate == "followWall":  
+            if self.ranges[5] > 0.0 and self.ranges[5] < 1.0:         
                 self.state = 'TransitionToPerson'
+                self.setPersonDefaults()
                 self.startTime = rospy.Time.now()
  
     def transition(self):
@@ -97,6 +95,7 @@ class FSM(object):
         else:
             self.cmd =Twist()
             self.state = 'personFollower'
+            self.substate = 'findWall'
     #
     #  Wall Follow Functions
     #
@@ -284,26 +283,32 @@ class FSM(object):
             return 0
 
     def followPerson(self):
-        #Calculate COM characteristics
-        centerOfMass = self.calcCOM(self.currentScan)
-        dist = self.calcDistance(centerOfMass)
-        angle = self.calcCOMAngle(centerOfMass)
         
-        #visualize COM
-        self.wallMarker.points = []
-        self.wallMarker.points.append(Point(x=centerOfMass.x, y=centerOfMass.y))
+        if self.currentScan:
+            #Calculate COM characteristics
+            centerOfMass = self.calcCOM(self.currentScan)
+            dist = self.calcDistance(centerOfMass)
+            angle = self.calcCOMAngle(centerOfMass)
+        
+            #visualize COM
+            self.wallMarker.points = []
+            self.wallMarker.points.append(Point(x=centerOfMass.x, y=centerOfMass.y))
 
-        #p-controller for speed and turning
-        xVel = self.kDist*(dist-self.setPointDist)
-        if math.fabs(dist-self.setPointDist) < 0.1:
-            xVel = 0
+            #p-controller for speed and turning
+            xVel = self.kDist*(dist-self.setPointDist)
+            if math.fabs(dist-self.setPointDist) < 0.1:
+                xVel = 0
 
-        zVal = self.kAngle*(angle)
-        if math.fabs(angle) < 2:
-            zVal = 0 
+            zVal = self.kAngle*(angle)
+            if math.fabs(angle) < 2:
+                zVal = 0 
 
-        self.cmd.linear.x=xVel
-        self.cmd.angular.z=zVal
+            self.cmd.linear.x=xVel
+            self.cmd.angular.z=zVal
+        else:
+            self.state = "wallFollower"
+            self.substate = "findWall"
+            self.setWallDefaults()
 
 
     def main(self):

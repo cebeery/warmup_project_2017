@@ -21,13 +21,13 @@ class ObstacleAvoid(object):
         self.r = rospy.Rate(2)
 
         #control attribute
-        self.scanArea = 60
+        self.scanRange = 45
+        self.scanThrow = 2 #*** arbitray
         self.kAngular = 0.3
         self.kLinear = 0.2
-        self.state = 'passive'
 
-
-	#cmd and sub storage attributes
+        
+	#pubscriber storage attributes
         self.ranges = []
         self.cmd = Twist()
         self.cmd.linear.x = 0
@@ -35,6 +35,7 @@ class ObstacleAvoid(object):
 
         #current status attributes
         self.netForce = [1.0,0.0]
+	self.state = 'passive'
 
     def processScan(self, msg):
         """updates stored laser scan and calls conversion to force"""
@@ -42,41 +43,38 @@ class ObstacleAvoid(object):
         self.processForces()
 
     def processForces(self):
-        """converts laser scan points in scan area to repellent forces inversely proportional to distance"""
+        """creates a repelent force based on weight average of laser scan"""     
+        
+        #converts laser scan points in boundry area to repellent forces inversely proportional to distance
         forces = []
-        for i in range(len(self.ranges)):
-            if i <= self.scanArea or i >= 360 - self.scanArea:
-                if self.ranges[i]:
+        for i in range(len(self.ranges)): 
+            if i <= self.scanRange or i >= 360 - self.scanRange: 
+                if self.ranges[i] and self.ranges[i] < self.scanThrow: 
                     x = math.cos(math.radians(i))/self.ranges[i]
                     y = math.sin(math.radians(i))/self.ranges[i]
                     forces.append([x, y])
+
+        #determine averaged net repellent force, if any
         if not forces:
             self.netForces = [[0, 0]]
             print "Nothing to See"
             netR = 0
             netTheta = 0
-        else:
-            #add forces
+        else: 
             netX = 0
             netY = 0
             for i in forces:
                 netX += i[0]/len(forces)
                 netY += i[1]/len(forces)
-                #print(netX, netY)
-
-	               #convert to polar coordinates for use with angular p-control
+                
+	    #convert to polar coordinates for use with angular p-control
             netTheta = math.atan(netY/netX)
             netR = -math.sqrt(netX**2 + netY**2)
-
-        #constraint robot to never retreat to avoid reverse motion collisions
-            if netR > 0.0:
-                netR = 0.0
-
-	#update net force attribute
             self.netForce = [netR, netTheta]
-        #print("{0:.2f}".format(netR), "{0:.2f}".format(netTheta)) #print 2 decimals of net force
+            #print("{0:.2f}".format(netR), "{0:.2f}".format(netTheta)) #print 2 decimals of net force
 
     def setCmdPassive(self):
+        """State using reactive propotional angular and linear speed when objects are nearish"""
         self.cmd.angular.z = self.netForce[0] * self.kAngular * math.copysign(1,self.netForce[1])
         print('Force: ' + str(self.netForce[0]))
         if math.fabs(self.netForce[0]) < 0.1:
@@ -85,17 +83,22 @@ class ObstacleAvoid(object):
         #print("Turn" + str(self.cmd.angular.z))
 
     def setCmdActive(self):
-        self.cmd.angular.z = 0.1
-        self.cmd.linear.x = 0[0]
+        """State using point turns to move away from very close objects"""
+        self.cmd.angular.z = 0.2
+        self.cmd.linear.x = 0.0
+
+    def setCmdForward(self):
+        """State using only a set forward linear motion when no objects nearish"""
+        self.cmd.angular.z = 0.0
+        self.cmd.linear.x = 0.2
 
     def checkState(self):
-        print self.netForce[0]
-        if self.netForce[0] < -1.5:
+	if self.netForce[0] < -1.5: #****add second check of object immediately in from of it 
             self.state = 'active'
-            print('act')
-        else:
+        #elif self.netForce[0] > -0.2: # ****currently arbitary
+        #    self.state = 'forward'
+        #else:
             self.state = 'passive'
-            print('pass')
 
         print("State")
 
@@ -105,11 +108,17 @@ class ObstacleAvoid(object):
             self.checkState()
             if self.state == 'passive':
                 self.setCmdPassive()
-            if self.state == 'active':
+            elif self.state == 'active':
                 self.setCmdActive()
+            #elif self.state == 'forward':
+            #    self.setCmdForward()
+            else:
+                print("State Unknown")
+
             self.pubCmd.publish(self.cmd)
-            print(self.state)
 	    self.r.sleep()
+
+#add vizualizer
 
 
 # Run instance
